@@ -4,7 +4,16 @@ import 'package:cancelable/cancelable.dart';
 import 'package:meta/meta.dart';
 
 class NPC {
-  NPC(this._send);
+  /// if send is null, you should extends NPC and override send().
+  NPC(Future<void> Function(Message message)? send) {
+    if (send == null) {
+      _send = (Message message) async {
+        await this.send(message);
+      };
+      return;
+    }
+    _send = send;
+  }
 
   @mustCallSuper
   void on(
@@ -74,6 +83,8 @@ class NPC {
     await _send(m);
     return completer.future;
   }
+
+  Future<void> send(Message message) async {}
 
   @mustCallSuper
   Future<void> receive(Message message) async {
@@ -177,7 +188,7 @@ class NPC {
     }
   }
 
-  Future<void> Function(Message message) _send;
+  late Future<void> Function(Message message) _send;
 
   final _notifies = Map<int, Notify>();
   final _cancels = Map<int, Function()>();
