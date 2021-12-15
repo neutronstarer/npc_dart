@@ -3,8 +3,11 @@ import 'dart:async';
 import 'package:cancelable/cancelable.dart';
 import 'package:meta/meta.dart';
 
+/// [NPC] Near Procedure Call
 class NPC {
-  /// if send is null, you should extends NPC and override send().
+  /// [NPC] Create instance.
+  /// If [send] is null, you should extends NPC and override send().
+  /// [send] Send message function
   NPC(Future<void> Function(Message message)? send) {
     if (send == null) {
       _send = (Message message) async {
@@ -15,6 +18,9 @@ class NPC {
     _send = send;
   }
 
+  /// [on] Register method handle.
+  /// [method] Method name.
+  /// [handle] Handle.
   @mustCallSuper
   void on(
     String method,
@@ -23,6 +29,9 @@ class NPC {
     _handlers[method] = handle;
   }
 
+  /// [emit] Emit method without reply.
+  /// [method] Method name.
+  /// [param] Method param.
   @mustCallSuper
   Future<void> emit(
     String method, {
@@ -32,6 +41,12 @@ class NPC {
     await _send(m);
   }
 
+  /// [deliver] Deliver method with reply.
+  /// [method] Method name.
+  /// [param] Method param.
+  /// [timeout] Timeout of this operation.
+  /// [cancelable] Cancel context.
+  /// [onNotify] Called when notified.
   @mustCallSuper
   Future deliver(
     String method, {
@@ -84,8 +99,11 @@ class NPC {
     return completer.future;
   }
 
+  /// [send] If [_send] is null, this function should be call to send message.
   Future<void> send(Message message) async {}
 
+  /// [receive] Receive message.
+  /// [message] Message.
   @mustCallSuper
   Future<void> receive(Message message) async {
     switch (message.typ) {
@@ -197,25 +215,45 @@ class NPC {
   var _id = 0;
 }
 
+/// [Handle] Method handle.
+/// [param]  Param.
+/// [cancelable] Cancel context.
 typedef Handle = Future<dynamic> Function(
   dynamic param,
   Cancelable cancelable,
   Notify notify,
 );
 
+/// [Notify] Notify.
+/// [param]  Param.
 typedef Notify = Future<void> Function(
   dynamic param,
 );
 
+/// [Typ]
 enum Typ {
+  /// [emit] Emit.
   emit,
+
+  /// [deliver] Deliver.
+
   deliver,
+
+  /// [notify] Notify.
+
   notify,
+
+  /// [ack] Ack.
+
   ack,
+
+  /// [cancel] Cancel.
   cancel,
 }
 
+/// [Message] Message.
 class Message {
+  /// Create instance.
   Message({
     required this.typ,
     this.id,
@@ -223,10 +261,24 @@ class Message {
     this.param,
     this.error,
   });
+
+  /// [typ] Typ.
   final Typ typ;
+
+  /// [id] Id.
+
   final int? id;
+
+  /// [method] Method.
+
   final String? method;
+
+  /// [param] Param.
+
   final dynamic param;
+
+  /// [error] Error.
+
   final dynamic error;
 
   @override
