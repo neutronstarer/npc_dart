@@ -95,7 +95,7 @@ class _MyHomePageState extends State<MyHomePage> {
     Notify? notify,
     Cancelable? cancelable,
   }) async {
-    StreamSubscription? sub;
+    Disposable? disposable;
     Timer? timer;
     final completer = Completer<String>();
     var i = 0;
@@ -109,10 +109,10 @@ class _MyHomePageState extends State<MyHomePage> {
         return;
       }
       timer.cancel();
-      await sub?.cancel();
+      await disposable?.dispose();
       completer.complete('Did download to $param');
     });
-    cancelable?.whenCancel(() {
+    disposable = cancelable?.whenCancel(() {
       if (completer.isCompleted) {
         return;
       }
