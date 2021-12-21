@@ -64,12 +64,10 @@ class _MyHomePageState extends State<MyHomePage> {
       });
       return;
     }
-    setState(() {
-      _cancelable = Cancelable();
-    });
     try {
       String path = '/Downloads/';
       setState(() {
+        _cancelable = Cancelable();
         _text = 'start download to $path';
       });
       final r = await _npcA?.deliver('download', param: path, cancelable: _cancelable!, timeout: Duration(seconds: int.parse(_timeout)), onNotify: (param) async {
@@ -79,15 +77,14 @@ class _MyHomePageState extends State<MyHomePage> {
       });
       setState(() {
         _text = r.toString();
+        _cancelable = null;
       });
     } catch (e) {
       setState(() {
         _text = e.toString();
+      _cancelable = null;
       });
     }
-    setState(() {
-      _cancelable = null;
-    });
   }
 
   Future<String> _download(

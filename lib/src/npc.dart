@@ -37,14 +37,13 @@ class NPC {
     String method, {
     dynamic param,
   }) async {
-    final m = Message(typ: Typ.emit, method: method, param: param);
-    await _send(m);
+    await _send(Message(typ: Typ.emit, method: method, param: param));
   }
 
   /// [deliver] Deliver method with reply.
   /// [method] Method name.
   /// [param] Method param.
-  /// [timeout] Timeout of this operation.
+  /// [timeout] Timeout.
   /// [cancelable] Cancel context.
   /// [onNotify] Called when notified.
   @mustCallSuper
@@ -55,11 +54,11 @@ class NPC {
     Cancelable? cancelable,
     Notify? onNotify,
   }) async {
-    final completer = Completer();
+    final completer = Completer.sync();
     final id = _id++;
     Timer? timer = null;
     Disposable? disposable = null;
-    final onReply = (dynamic param, dynamic error) async {
+    final reply = (dynamic param, dynamic error) async {
       if (completer.isCompleted) {
         return false;
       }
@@ -71,31 +70,33 @@ class NPC {
       _notifies.remove(id);
       _replies.remove(id);
       timer?.cancel();
-      await disposable?.dispose();
+      disposable?.dispose();
       return true;
     };
     if (onNotify != null) {
-      _notifies[id] = onNotify;
+      _notifies[id] = (dynamic param) async {
+        if (completer.isCompleted){
+          return;
+        }
+        onNotify(param);
+      };
     }
     if (cancelable != null) {
       disposable = cancelable.whenCancel(() async {
-        if (await onReply(null, 'cancelled') == true) {
-          final m = Message(typ: Typ.cancel, id: id);
-          await _send(m);
+        if (await reply(null, 'cancelled') == true) {
+          await _send(Message(typ: Typ.cancel, id: id));
         }
       });
     }
-    if (timeout != null && timeout.inMicroseconds > 0) {
+    if (timeout != null && timeout.inMilliseconds > 0) {
       timer = Timer(timeout, () async {
-        if (await onReply(null, 'timedout') == true) {
-          final m = Message(typ: Typ.cancel, id: id);
-          await _send(m);
+        if (await reply(null, 'timedout') == true) {
+          await _send(Message(typ: Typ.cancel, id: id));
         }
       });
     }
-    _replies[id] = onReply;
-    final m = Message(typ: Typ.deliver, id: id, method: method, param: param);
-    await _send(m);
+    _replies[id] = reply;
+    await _send(Message(typ: Typ.deliver, id: id, method: method, param: param));
     return completer.future;
   }
 
@@ -141,31 +142,27 @@ class NPC {
           }
           completed = true;
           cancelable.cancel();
-          _cancels.remove(id);
         };
         try {
           final r = await handle(message.param, cancelable, (param) async {
             if (completed) {
               return;
             }
-            final m = Message(typ: Typ.notify, id: id, param: param);
-            await _send(m);
+            await _send(Message(typ: Typ.notify, id: id, param: param));
           });
           if (completed) {
             return;
           }
-          completed = true;
           _cancels.remove(id);
-          final m = Message(typ: Typ.ack, id: id, param: r);
-          await _send(m);
+          completed = true;
+          await _send(Message(typ: Typ.ack, id: id, param: r));
         } catch (e) {
           if (completed) {
             return;
           }
-          completed = true;
           _cancels.remove(id);
-          final m = Message(typ: Typ.ack, id: id, error: e);
-          await _send(m);
+          completed = true;
+          await _send(Message(typ: Typ.ack, id: id, error: e));
         }
         break;
       case Typ.ack:
@@ -184,7 +181,7 @@ class NPC {
         if (id == null) {
           break;
         }
-        final cancel = _cancels[id];
+        final cancel = _cancels.remove(id);
         if (cancel == null) {
           break;
         }

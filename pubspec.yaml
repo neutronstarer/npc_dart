@@ -1,6 +1,6 @@
 name: npc
 description: Near Procedure Call.
-version: 0.0.2
+version: 0.0.3
 homepage: https://github.com/neutronstarer/npc_dart
 
 environment:
