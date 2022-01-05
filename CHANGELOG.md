@@ -9,3 +9,7 @@
 ## 0.0.3
 
 * TODO: Optimize code.
+
+## 0.0.4
+
+* TODO: Add cleanUp().
