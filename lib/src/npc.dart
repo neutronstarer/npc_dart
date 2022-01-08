@@ -103,13 +103,14 @@ class NPC {
   /// [send] If [_send] is null, this function should be call to send message.
   Future<void> send(Message message) async {}
 
-  /// [cleanUp] Clean up all deliveries with error.
+  /// [cleanUpDeliveries] Clean up all deliveries with special reason.
+  /// [reason] error.
   @mustCallSuper
-  Future<void> cleanUp(dynamic error) async{
+  Future<void> cleanUpDeliveries(dynamic reason) async{
     final iterator = this._replies.entries.iterator;
     while (iterator.moveNext()) {
         final reply = iterator.current.value;
-        await reply(null, error);
+        await reply(null, reason);
     }
   }
   /// [receive] Receive message.

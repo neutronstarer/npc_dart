@@ -13,3 +13,7 @@
 ## 0.0.4
 
 * TODO: Add cleanUp().
+
+## 0.0.5
+
+* TODO: Rename [cleanUp] to [cleanUpDeliveries].
