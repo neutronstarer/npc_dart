@@ -43,11 +43,11 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   void initState() {
-    _npcA = NPC((message) async {
+    _npcA = NPC((message) {
       log(message.toString(), name: 'A_SEND');
       _npcB?.receive(message);
     });
-    _npcB = NPC((message) async {
+    _npcB = NPC((message) {
       log(message.toString(), name: 'B_SEND');
       _npcA?.receive(message);
     });

@@ -17,3 +17,7 @@
 ## 0.0.5
 
 * TODO: Rename [cleanUp] to [cleanUpDeliveries].
+
+## 0.0.6
+
+* TODO: Try catch.
