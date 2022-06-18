@@ -21,3 +21,7 @@
 ## 0.0.6
 
 * TODO: Try catch.
+
+## 0.0.6
+
+* TODO: Renew pubspec.

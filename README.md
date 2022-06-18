@@ -26,7 +26,7 @@ await npc.emit('say', 'hello');
 
 ``` dart
 // deliver
-final r =await npc.deliver('download', param: '/path', onNotify: (param){
+final r = await npc.deliver('download', param: '/path', onNotify: (param){
 
 });
 ```
