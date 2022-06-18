@@ -25,3 +25,7 @@
 ## 0.0.7
 
 * TODO: Renew pubspec.
+
+## 1.0.0
+
+* TODO: Stable.
