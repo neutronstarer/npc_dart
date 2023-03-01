@@ -1,7 +1,8 @@
 import 'dart:async';
 
-import 'package:npc/npc.dart';
+import 'npc.dart';
 import 'message.dart';
+import 'package:cancelable/cancelable.dart';
 
 class NPCImpl implements NPC {
   NPCImpl();
