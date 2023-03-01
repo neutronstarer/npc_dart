@@ -6,15 +6,16 @@ import 'package:test/test.dart';
 
 void main() {
   test('npc', () async {
-    NPC? c0, c1;
-    c0 = NPC((message) async {
+    NPC c0 = NPC();
+    NPC c1 = NPC();
+    c0.send = (message) async {
       print(message);
-      await c1?.receive(message);
-    });
-    c1 = NPC((message) async {
+      await c1.receive(message);
+    };
+    c1.send = (message) async {
       print(message);
-      await c0?.receive(message);
-    });
+      await c0.receive(message);
+    };
     config(c0);
     config(c1);
     final r0 = await c0.deliver('ping');
