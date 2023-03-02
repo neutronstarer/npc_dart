@@ -40,7 +40,7 @@ abstract class NPC {
   /// [cancelable] Cancel context.
   /// [onNotify] Called when notified.
 
-  Future deliver(
+  Future<dynamic> deliver(
     String method, {
     dynamic param,
     Duration? timeout,

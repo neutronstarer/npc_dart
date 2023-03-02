@@ -33,3 +33,7 @@
 ## 2.0.0
 
 * TODO: Stable.
+
+## 2.0.1
+
+* TODO: Stable.

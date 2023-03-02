@@ -20,7 +20,7 @@ class NPCImpl implements NPC {
     await send(Message(typ: Typ.emit, method: method, param: param));
   }
 
-  Future deliver(
+  Future<dynamic> deliver(
     String method, {
     dynamic param,
     Duration? timeout,
