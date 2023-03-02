@@ -4,9 +4,10 @@
 
 ```dart
 // Create a NPC
-final npc = NPC((message) async{
+final npc = NPC();
+npc.send = (message) async{
     // send message
-});
+};
 ```
 
 ```dart

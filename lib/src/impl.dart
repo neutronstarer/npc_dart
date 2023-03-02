@@ -31,7 +31,7 @@ class NPCImpl implements NPC {
     final id = _id++;
     Timer? timer = null;
     Disposable? disposable = null;
-    final reply = (dynamic param, dynamic error) async {
+    final reply = (dynamic param, dynamic error) {
       if (completer.isCompleted) {
         return false;
       }
@@ -43,7 +43,7 @@ class NPCImpl implements NPC {
       _notifies.remove(id);
       _replies.remove(id);
       timer?.cancel();
-      await disposable?.dispose();
+      disposable?.dispose();
       return true;
     };
     if (onNotify != null) {
@@ -83,7 +83,7 @@ class NPCImpl implements NPC {
     final iterator = this._replies.entries.iterator;
     while (iterator.moveNext()) {
       final reply = iterator.current.value;
-      await reply(null, reason);
+      reply(null, reason);
     }
   }
 
@@ -155,7 +155,7 @@ class NPCImpl implements NPC {
         if (reply == null) {
           break;
         }
-        await reply(message.param, message.error);
+        reply(message.param, message.error);
         break;
       case Typ.cancel:
         final id = message.id;
@@ -188,7 +188,6 @@ class NPCImpl implements NPC {
   var _id = 0;
   final _notifies = Map<int, Notify>();
   final _cancels = Map<int, Function()>();
-  final _replies =
-      Map<int, Future<void> Function(dynamic param, dynamic error)>();
+  final _replies = Map<int, void Function(dynamic param, dynamic error)>();
   final _handlers = Map<String, Handle>();
 }
