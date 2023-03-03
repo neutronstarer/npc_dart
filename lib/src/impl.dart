@@ -1,25 +1,47 @@
 import 'dart:async';
 
 import 'npc.dart';
-import 'message.dart';
 import 'package:cancelable/cancelable.dart';
 
 class NPCImpl implements NPC {
   NPCImpl();
+
+  @override
+  late Future<void> Function(Message message) send;
+
+  @override
   void on(
     String method,
-    Handle handle,
+    Handle? handle,
   ) {
-    _handlers[method] = handle;
+    this[method] = handle;
   }
 
+  @override
+  Handle? operator [](String method) {
+    return _handlers[method];
+  }
+
+  @override
+  void operator []=(String method, Handle? handle) {
+    if (handle == null) {
+      _handlers.remove(method);
+    } else {
+      _handlers[method] = handle;
+    }
+  }
+
+  @override
   Future<void> emit(
     String method, {
     dynamic param,
   }) async {
-    await send(Message(typ: Typ.emit, method: method, param: param));
+    final m =
+        Message(typ: Typ.emit, id: _nextId(), method: method, param: param);
+    await send(m);
   }
 
+  @override
   Future<dynamic> deliver(
     String method, {
     dynamic param,
@@ -28,9 +50,9 @@ class NPCImpl implements NPC {
     Notify? onNotify,
   }) async {
     final completer = Completer.sync();
-    final id = _id++;
     Timer? timer = null;
     Disposable? disposable = null;
+    final id = _nextId();
     final reply = (dynamic param, dynamic error) {
       if (completer.isCompleted) {
         return false;
@@ -40,12 +62,13 @@ class NPCImpl implements NPC {
       } else {
         completer.completeError(error);
       }
+      timer?.cancel();
       _notifies.remove(id);
       _replies.remove(id);
-      timer?.cancel();
       disposable?.dispose();
       return true;
     };
+    _replies[id] = reply;
     if (onNotify != null) {
       _notifies[id] = (dynamic param) async {
         if (completer.isCompleted) {
@@ -53,139 +76,122 @@ class NPCImpl implements NPC {
         }
         try {
           await onNotify(param);
-        } catch (_) {}
+        } catch (e) {
+          print(e);
+        }
       };
     }
     if (cancelable != null) {
       disposable = cancelable.whenCancel(() async {
         try {
           if (await reply(null, 'cancelled') == true) {
-            send(Message(typ: Typ.cancel, id: id));
+            final m = Message(typ: Typ.cancel, id: id);
+            send(m);
           }
-        } catch (_) {}
+        } catch (e) {
+          print(e);
+        }
       });
     }
     if (timeout != null && timeout.inMilliseconds > 0) {
       timer = Timer(timeout, () async {
         try {
           if (await reply(null, 'timedout') == true) {
-            send(Message(typ: Typ.cancel, id: id));
+            final m = Message(typ: Typ.cancel, id: id);
+            send(m);
           }
-        } catch (_) {}
+        } catch (e) {
+          print(e);
+        }
       });
     }
-    _replies[id] = reply;
     send(Message(typ: Typ.deliver, id: id, method: method, param: param));
     return completer.future;
   }
 
-  Future<void> cleanUpDeliveries(dynamic reason) async {
-    final iterator = this._replies.entries.iterator;
-    while (iterator.moveNext()) {
-      final reply = iterator.current.value;
-      reply(null, reason);
-    }
-  }
-
+  @override
   Future<void> receive(Message message) async {
     switch (message.typ) {
       case Typ.emit:
-        final method = message.method;
-        if (method == null) {
-          break;
-        }
-        final handle = _handlers[method];
-        if (handle == null) {
-          break;
-        }
-        await handle(message.param, Cancelable(), (_) async {});
+        await _handlers[message.method]
+            ?.call(message.param, Cancelable(), (_) async {});
         break;
       case Typ.deliver:
         final id = message.id;
-        if (id == null) {
-          break;
-        }
-        final method = message.method;
-        if (method == null) {
-          break;
-        }
-        final handle = _handlers[method];
+        final handle = _handlers[message.method];
         if (handle == null) {
           final m = Message(typ: Typ.ack, id: id, error: 'unimplemented');
           send(m);
           break;
         }
-        final cancelable = Cancelable();
         var completed = false;
+        final cancelable = Cancelable();
         _cancels[id] = () {
           if (completed) {
             return;
           }
           completed = true;
           cancelable.cancel();
+          _cancels.remove(id);
         };
         try {
           final r = await handle(message.param, cancelable, (param) async {
             if (completed) {
               return;
             }
-            send(Message(typ: Typ.notify, id: id, param: param));
+            final m = Message(typ: Typ.notify, id: id, param: param);
+            send(m);
           });
           if (completed) {
             return;
           }
-          _cancels.remove(id);
           completed = true;
-          send(Message(typ: Typ.ack, id: id, param: r));
+          _cancels.remove(id);
+          final m = Message(typ: Typ.ack, id: id, param: r);
+          send(m);
         } catch (e) {
           if (completed) {
             return;
           }
-          _cancels.remove(id);
           completed = true;
-          send(Message(typ: Typ.ack, id: id, error: e));
+          _cancels.remove(id);
+          final m = Message(typ: Typ.ack, id: id, error: e);
+          send(m);
         }
         break;
       case Typ.ack:
-        final id = message.id;
-        if (id == null) {
-          break;
-        }
-        final reply = _replies[id];
-        if (reply == null) {
-          break;
-        }
-        reply(message.param, message.error);
+        _replies[message.id]?.call(message.param, message.error);
         break;
       case Typ.cancel:
-        final id = message.id;
-        if (id == null) {
-          break;
-        }
-        final cancel = _cancels.remove(id);
-        if (cancel == null) {
-          break;
-        }
-        cancel();
+        _cancels.remove(message.id)?.call();
         break;
       case Typ.notify:
-        final id = message.id;
-        if (id == null) {
-          break;
-        }
-        final notify = _notifies[id];
-        if (notify == null) {
-          break;
-        }
-        await notify(message.param);
+        await _notifies[message.id]?.call(message.param);
         break;
       default:
         break;
     }
   }
 
-  late Future<void> Function(Message message) send;
-  var _id = 0;
+  @override
+  Future<void> cleanUpDeliveries(dynamic reason) async {
+    final iterator = _replies.entries.iterator;
+    while (iterator.moveNext()) {
+      final reply = iterator.current.value;
+      reply(null, reason);
+    }
+  }
+
+  int _nextId() {
+    if (_id < 0x7fffffff) {
+      _id++;
+    } else {
+      _id = 0;
+    }
+    return _id;
+  }
+
+  var _id = -1;
   final _notifies = Map<int, Notify>();
   final _cancels = Map<int, Function()>();
   final _replies = Map<int, void Function(dynamic param, dynamic error)>();
