@@ -7,7 +7,7 @@ class NPCImpl implements NPC {
   NPCImpl();
 
   @override
-  late Future<void> Function(Message message) send;
+  late FutureOr<void> Function(Message message) send;
 
   @override
   void on(
@@ -32,7 +32,7 @@ class NPCImpl implements NPC {
   }
 
   @override
-  Future<void> emit(
+  FutureOr<void> emit(
     String method, {
     dynamic param,
   }) async {

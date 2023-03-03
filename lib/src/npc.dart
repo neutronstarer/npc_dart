@@ -6,7 +6,7 @@ import 'package:npc/src/impl.dart';
 /// [Handle] Method handle.
 /// [param]  Param.
 /// [cancelable] Cancel context.
-typedef Handle = Future<dynamic> Function(
+typedef Handle = FutureOr<dynamic> Function(
   dynamic param,
   Cancelable cancelable,
   Notify notify,
@@ -14,7 +14,7 @@ typedef Handle = Future<dynamic> Function(
 
 /// [Notify] Notify.
 /// [param]  Param.
-typedef Notify = Future<void> Function(
+typedef Notify = FutureOr<void> Function(
   dynamic param,
 );
 
@@ -94,7 +94,7 @@ abstract class NPC {
   }
 
   /// Send message, must be set before work.
-  late Future<void> Function(Message message) send;
+  late FutureOr<void> Function(Message message) send;
 
   /// [receive] Receive message.
   /// [message] Message.
@@ -115,7 +115,7 @@ abstract class NPC {
   /// [emit] Emit method without reply.
   /// [method] Method name.
   /// [param] Method param.
-  Future<void> emit(
+  FutureOr<void> emit(
     String method, {
     dynamic param,
   });
