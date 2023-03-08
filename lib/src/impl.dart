@@ -7,7 +7,7 @@ class NPCImpl implements NPC {
   NPCImpl();
 
   @override
-  late FutureOr<void> Function(Message message) send;
+  late void Function(Message message) send;
 
   @override
   void on(
@@ -19,26 +19,26 @@ class NPCImpl implements NPC {
 
   @override
   Handle? operator [](String method) {
-    return _handlers[method];
+    return _handles[method];
   }
 
   @override
   void operator []=(String method, Handle? handle) {
     if (handle == null) {
-      _handlers.remove(method);
+      _handles.remove(method);
     } else {
-      _handlers[method] = handle;
+      _handles[method] = handle;
     }
   }
 
   @override
-  FutureOr<void> emit(
+  void emit(
     String method, {
     dynamic param,
   }) async {
     final m =
         Message(typ: Typ.emit, id: _nextId(), method: method, param: param);
-    await send(m);
+    send(m);
   }
 
   @override
@@ -62,9 +62,9 @@ class NPCImpl implements NPC {
       } else {
         completer.completeError(error);
       }
-      timer?.cancel();
       _notifies.remove(id);
       _replies.remove(id);
+      timer?.cancel();
       disposable?.dispose();
       return true;
     };
@@ -77,35 +77,28 @@ class NPCImpl implements NPC {
         try {
           await onNotify(param);
         } catch (e) {
-          print(e);
+          print("[NPC] onNotify error: $e");
         }
       };
     }
     if (cancelable != null) {
       disposable = cancelable.whenCancel(() async {
-        try {
-          if (await reply(null, 'cancelled') == true) {
-            final m = Message(typ: Typ.cancel, id: id);
-            send(m);
-          }
-        } catch (e) {
-          print(e);
+        if (reply(null, 'cancelled') == true) {
+          final m = Message(typ: Typ.cancel, id: id);
+          send(m);
         }
       });
     }
     if (timeout != null && timeout.inMilliseconds > 0) {
-      timer = Timer(timeout, () async {
-        try {
-          if (await reply(null, 'timedout') == true) {
-            final m = Message(typ: Typ.cancel, id: id);
-            send(m);
-          }
-        } catch (e) {
-          print(e);
+      timer = Timer(timeout, () {
+        if (reply(null, 'timedout') == true) {
+          final m = Message(typ: Typ.cancel, id: id);
+          send(m);
         }
       });
     }
-    send(Message(typ: Typ.deliver, id: id, method: method, param: param));
+    final m = Message(typ: Typ.deliver, id: id, method: method, param: param);
+    send(m);
     return completer.future;
   }
 
@@ -113,57 +106,61 @@ class NPCImpl implements NPC {
   Future<void> receive(Message message) async {
     switch (message.typ) {
       case Typ.emit:
-        await _handlers[message.method]
-            ?.call(message.param, Cancelable(), (_) async {});
+        final handle = _handles[message.method];
+        if (handle == null) {
+          print("[NPC] unhandled message: ${message}");
+          break;
+        }
+        await handle(message.param, Cancelable(), (_) async {});
         break;
       case Typ.deliver:
         final id = message.id;
-        final handle = _handlers[message.method];
+        final handle = _handles[message.method];
         if (handle == null) {
-          final m = Message(typ: Typ.ack, id: id, error: 'unimplemented');
+          print("[NPC] unhandled message: ${message}");
+          final m = Message(
+              typ: Typ.ack, id: id, param: null, error: "unimplemented");
           send(m);
           break;
         }
         var completed = false;
+        final notify = (dynamic param) {
+          if (completed) {
+            return;
+          }
+          final m = Message(typ: Typ.notify, id: id, param: param);
+          send(m);
+        };
+        final reply = (dynamic param, dynamic error) {
+          if (completed) {
+            return;
+          }
+          completed = true;
+          _cancels.remove(id);
+          final m = Message(typ: Typ.ack, id: id, param: param, error: error);
+          send(m);
+        };
         final cancelable = Cancelable();
         _cancels[id] = () {
           if (completed) {
             return;
           }
           completed = true;
-          cancelable.cancel();
           _cancels.remove(id);
+          cancelable.cancel();
         };
         try {
-          final r = await handle(message.param, cancelable, (param) async {
-            if (completed) {
-              return;
-            }
-            final m = Message(typ: Typ.notify, id: id, param: param);
-            send(m);
-          });
-          if (completed) {
-            return;
-          }
-          completed = true;
-          _cancels.remove(id);
-          final m = Message(typ: Typ.ack, id: id, param: r);
-          send(m);
+          final r = await handle(message.param, cancelable, notify);
+          reply(r, null);
         } catch (e) {
-          if (completed) {
-            return;
-          }
-          completed = true;
-          _cancels.remove(id);
-          final m = Message(typ: Typ.ack, id: id, error: e);
-          send(m);
+          reply(null, e);
         }
         break;
       case Typ.ack:
         _replies[message.id]?.call(message.param, message.error);
         break;
       case Typ.cancel:
-        _cancels.remove(message.id)?.call();
+        _cancels[message.id]?.call();
         break;
       case Typ.notify:
         await _notifies[message.id]?.call(message.param);
@@ -174,10 +171,10 @@ class NPCImpl implements NPC {
   }
 
   @override
-  Future<void> cleanUpDeliveries(dynamic reason) async {
-    final iterator = _replies.entries.iterator;
-    while (iterator.moveNext()) {
-      final reply = iterator.current.value;
+  void cleanUp(dynamic reason) {
+    final i0 = _replies.entries.iterator;
+    while (i0.moveNext()) {
+      final reply = i0.current.value;
       reply(null, reason);
     }
   }
@@ -193,7 +190,7 @@ class NPCImpl implements NPC {
 
   var _id = -1;
   final _notifies = Map<int, Notify>();
-  final _cancels = Map<int, Function()>();
+  final _cancels = Map<int, void Function()>();
   final _replies = Map<int, void Function(dynamic param, dynamic error)>();
-  final _handlers = Map<String, Handle>();
+  final _handles = Map<String, Handle>();
 }

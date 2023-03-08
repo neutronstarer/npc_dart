@@ -94,7 +94,7 @@ abstract class NPC {
   }
 
   /// Send message, must be set before work.
-  late FutureOr<void> Function(Message message) send;
+  late void Function(Message message) send;
 
   /// [receive] Receive message.
   /// [message] Message.
@@ -115,7 +115,7 @@ abstract class NPC {
   /// [emit] Emit method without reply.
   /// [method] Method name.
   /// [param] Method param.
-  FutureOr<void> emit(
+  void emit(
     String method, {
     dynamic param,
   });
@@ -135,7 +135,7 @@ abstract class NPC {
     Notify? onNotify,
   });
 
-  /// [cleanUpDeliveries] Clean up all deliveries with special reason.
+  /// [cleanUp] Clean up delivers with special reason, used when the connection is down.
   /// [reason] error.
-  Future<void> cleanUpDeliveries(dynamic reason);
+  void cleanUp(dynamic reason);
 }
