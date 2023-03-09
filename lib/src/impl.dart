@@ -5,9 +5,32 @@ import 'package:cancelable/cancelable.dart';
 
 class NPCImpl implements NPC {
   NPCImpl();
+  @override
+  void connect(void Function(Message p1) send) {
+    disconnect();
+    this._send = send;
+  }
 
   @override
-  late void Function(Message message) send;
+  void disconnect({reason}) {
+    final error = reason ?? "disconnected";
+    this
+        ._replies
+        .values
+        .map((e) => e)
+        .toList(growable: false)
+        .forEach((element) {
+      element(null, error);
+    });
+    this
+        ._cancels
+        .values
+        .map((e) => e)
+        .toList(growable: false)
+        .forEach((element) {
+      element();
+    });
+  }
 
   @override
   void on(
@@ -38,7 +61,7 @@ class NPCImpl implements NPC {
   }) async {
     final m =
         Message(typ: Typ.emit, id: _nextId(), method: method, param: param);
-    send(m);
+    _send?.call(m);
   }
 
   @override
@@ -74,18 +97,14 @@ class NPCImpl implements NPC {
         if (completer.isCompleted) {
           return;
         }
-        try {
-          await onNotify(param);
-        } catch (e) {
-          print("[NPC] onNotify error: $e");
-        }
+        await onNotify(param);
       };
     }
     if (cancelable != null) {
       disposable = cancelable.whenCancel(() async {
         if (reply(null, 'cancelled') == true) {
           final m = Message(typ: Typ.cancel, id: id);
-          send(m);
+          _send?.call(m);
         }
       });
     }
@@ -93,12 +112,12 @@ class NPCImpl implements NPC {
       timer = Timer(timeout, () {
         if (reply(null, 'timedout') == true) {
           final m = Message(typ: Typ.cancel, id: id);
-          send(m);
+          _send?.call(m);
         }
       });
     }
     final m = Message(typ: Typ.deliver, id: id, method: method, param: param);
-    send(m);
+    _send?.call(m);
     return completer.future;
   }
 
@@ -120,7 +139,7 @@ class NPCImpl implements NPC {
           print("[NPC] unhandled message: ${message}");
           final m = Message(
               typ: Typ.ack, id: id, param: null, error: "unimplemented");
-          send(m);
+          _send?.call(m);
           break;
         }
         var completed = false;
@@ -129,7 +148,7 @@ class NPCImpl implements NPC {
             return;
           }
           final m = Message(typ: Typ.notify, id: id, param: param);
-          send(m);
+          _send?.call(m);
         };
         final reply = (dynamic param, dynamic error) {
           if (completed) {
@@ -138,7 +157,7 @@ class NPCImpl implements NPC {
           completed = true;
           _cancels.remove(id);
           final m = Message(typ: Typ.ack, id: id, param: param, error: error);
-          send(m);
+          _send?.call(m);
         };
         final cancelable = Cancelable();
         _cancels[id] = () {
@@ -170,15 +189,6 @@ class NPCImpl implements NPC {
     }
   }
 
-  @override
-  void cleanUp(dynamic reason) {
-    final i0 = _replies.entries.iterator;
-    while (i0.moveNext()) {
-      final reply = i0.current.value;
-      reply(null, reason);
-    }
-  }
-
   int _nextId() {
     if (_id < 0x7fffffff) {
       _id++;
@@ -193,4 +203,5 @@ class NPCImpl implements NPC {
   final _cancels = Map<int, void Function()>();
   final _replies = Map<int, void Function(dynamic param, dynamic error)>();
   final _handles = Map<String, Handle>();
+  void Function(Message message)? _send;
 }

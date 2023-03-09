@@ -8,14 +8,14 @@ void main() {
   test('npc', () async {
     NPC c0 = NPC();
     NPC c1 = NPC();
-    c0.send = (message) async {
+    c0.connect((message) async {
       print(message);
       await c1.receive(message);
-    };
-    c1.send = (message) async {
+    });
+    c1.connect((message) async {
       print(message);
       await c0.receive(message);
-    };
+    });
     config(c0);
     config(c1);
     final r0 = await c0.deliver('ping');

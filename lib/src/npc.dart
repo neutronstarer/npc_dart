@@ -93,8 +93,9 @@ abstract class NPC {
     return NPCImpl();
   }
 
-  /// Send message, must be set before work.
-  late void Function(Message message) send;
+  void connect(void Function(Message) send);
+
+  void disconnect({dynamic reason});
 
   /// [receive] Receive message.
   /// [message] Message.
@@ -134,8 +135,4 @@ abstract class NPC {
     Cancelable? cancelable,
     Notify? onNotify,
   });
-
-  /// [cleanUp] Clean up delivers with special reason, used when the connection is down.
-  /// [reason] error.
-  void cleanUp(dynamic reason);
 }
